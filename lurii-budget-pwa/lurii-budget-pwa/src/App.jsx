@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { auth, loginWithGoogle, loginAsGuest } from "./firebase/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc, getDoc, getFirestore } from "firebase/firestore";
+
+const db = getFirestore();
 import { loadLocalState, saveLocalState } from "./utils/storage";
 
 const TODAY = new Date().toISOString().slice(0, 10);
