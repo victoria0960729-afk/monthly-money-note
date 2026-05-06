@@ -1,5 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
+import { auth, loginWithGoogle, loginAsGuest } from "./firebase/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { loadLocalState, saveLocalState } from "./utils/storage";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -127,7 +129,24 @@ export default function App() {
   });
 
   const theme = themes.find((item) => item.id === state.themeId) || themes[0];
+
   const chartColors = [theme.colors[0], theme.colors[1], theme.colors[2], theme.colors[4], theme.colors[3], theme.colors[5]];
+
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) return;
+      setState((prev) => ({
+        ...prev,
+        account: {
+          provider: user.isAnonymous ? "guest" : "gmail",
+          email: user.email || "訪客"
+        }
+      }));
+    });
+    return () => unsub();
+  }, []);
+
 
   useEffect(() => {
     const entries = completedSavingEntries(state.records, state.savingGoal.history);
@@ -444,12 +463,44 @@ export default function App() {
               </Card>
 
               <Card title="☁️ 帳號與記憶">
-                <div className="switch three">
-                  {["gmail", "guest"].map((provider) => (
-                    <button key={provider} className={state.account.provider === provider ? "active" : ""} onClick={() => updateState({ account: { ...state.account, provider } })}>
-                      {provider === "gmail" ? "Gmail" : "訪客"}
-                    </button>
-                  ))}
+                <div className="switch">
+                  <button
+                    className={state.account.provider === "gmail" ? "active" : ""}
+                    onClick={async () => {
+                      try {
+                        const result = await loginWithGoogle();
+                        updateState({
+                          account: {
+                            provider: "gmail",
+                            email: result.user.email || ""
+                          }
+                        });
+                      } catch (err) {
+                        alert("Google 登入失敗");
+                      }
+                    }}
+                  >
+                    Gmail
+                  </button>
+
+                  <button
+                    className={state.account.provider === "guest" ? "active" : ""}
+                    onClick={async () => {
+                      try {
+                        await loginAsGuest();
+                        updateState({
+                          account: {
+                            provider: "guest",
+                            email: "訪客"
+                          }
+                        });
+                      } catch (err) {
+                        alert("訪客登入失敗");
+                      }
+                    }}
+                  >
+                    訪客
+                  </button>
                 </div>
                 {state.account.provider !== "guest" && (
                   <>
