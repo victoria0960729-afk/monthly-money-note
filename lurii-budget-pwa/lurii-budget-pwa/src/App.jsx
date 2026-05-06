@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { auth, loginWithGoogle, loginAsGuest } from "./firebase/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, setDoc, getDoc, getFirestore } from "firebase/firestore";
 import { loadLocalState, saveLocalState } from "./utils/storage";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -146,6 +147,58 @@ export default function App() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    const saveCloud = async () => {
+      if (!auth.currentUser) return;
+      if (auth.currentUser.isAnonymous) return;
+
+      try {
+        await setDoc(doc(db, "users", auth.currentUser.uid), {
+          appState: state
+        });
+      } catch (e) {
+        console.log(e);
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      saveCloud();
+    }, 800);
+
+    return () => clearTimeout(timeout);
+  }, [state]);
+
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user || user.isAnonymous) return;
+
+      try {
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data?.appState) {
+            setState((prev) => ({
+              ...prev,
+              ...data.appState,
+              account: {
+                provider: "gmail",
+                email: user.email || ""
+              }
+            }));
+          }
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
 
 
   useEffect(() => {
